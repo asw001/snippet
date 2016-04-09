@@ -28,7 +28,7 @@ def put(database_name, tablename, name, snippet):
     Returns the name and snippet
     """
     connection = initialize_db(database_name)
-    logging.info("Storing snippet {!r}: {!r} in {!r} database".format(name, snippet, database_name))
+    logging.info("Storing snippet {!r}: {!r} in {!r} database, in table {!r}".format(name, snippet, database_name, tablename))
     cursor = connection.cursor()
     command = "insert into %s values (%s, %s)"
     
