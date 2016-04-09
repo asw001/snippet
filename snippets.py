@@ -2,6 +2,7 @@
 
 import logging
 import argparse
+from psycopg2.extensions import AsIs
 import psycopg2
 import sys
 
@@ -33,15 +34,12 @@ def put(database_name, name, snippet):
     
     try:
         cursor.execute(command, (name, snippet))
+        cursor.close()
+        connection.commit()
     except psycopg2.ProgrammingError:
         print("Error with SQL statement")
         logging.error("Error with SQL statement")
-        return
-    try:    
-        connection.commit()
-    except psycopg2.OperationalError:
-        print("Could not commit")
-        logging.error("Could not commit")
+        connection.rollback()
         return
         
     logging.debug("Snippet stored successfully.")
@@ -61,15 +59,18 @@ def get(database_name, tablename, name):
     command = "select keyword, message from %s where keyword = %s"
     
     try:
-        cursor.execute(command, (tablename, name))
+        cursor.execute(command, (AsIs(tablename), name)) # needed to not interpolate the table name; quotes will cause the execution to fail
+        cursor.fetchall()
+        cursor.close()
+        connection.commit()
     except psycopg2.ProgrammingError:
         print("Error with SQL statement")
         logging.error("Error with SQL statement")
+        connection.rollback()
         return
     
-    return_set = cursor.fetchone()[1]
     logging.debug("Snippet for {} retrieved successfully.".format(name))
-    return return_set
+    return cursor.fetchall()[0][1]
 
 
 def main():
