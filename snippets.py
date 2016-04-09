@@ -21,19 +21,19 @@ def initialize_db(database_name):
     logging.debug("Database connection established.")
     return connection    
         
-def put(database_name, name, snippet):
+def put(database_name, tablename, name, snippet):
     """
     store a snippet with an associated name
 
     Returns the name and snippet
     """
     connection = initialize_db(database_name)
-    logging.info("Storing snippet {!r}: {!r}".format(name, snippet))
+    logging.info("Storing snippet {!r}: {!r} in {!r} database".format(name, snippet, database_name))
     cursor = connection.cursor()
-    command = "insert into snippets values (%s, %s)"
+    command = "insert into %s values (%s, %s)"
     
     try:
-        cursor.execute(command, (name, snippet))
+        cursor.execute(command, (AsIs(tablename), name, snippet))
         cursor.close()
         connection.commit()
     except psycopg2.ProgrammingError:
@@ -60,9 +60,14 @@ def get(database_name, tablename, name):
     
     try:
         cursor.execute(command, (AsIs(tablename), name)) # needed to not interpolate the table name; quotes will cause the execution to fail
-        cursor.fetchall()
-        cursor.close()
-        connection.commit()
+        try:
+            return_set = cursor.fetchall()[0][1]
+        except IndexError:
+            print("No record with keyword {}".format(name))
+            logging.error("No record with keyword {}".format(name))
+            connection.rollback()
+            cursor.close()
+            return
     except psycopg2.ProgrammingError:
         print("Error with SQL statement")
         logging.error("Error with SQL statement")
@@ -70,7 +75,7 @@ def get(database_name, tablename, name):
         return
     
     logging.debug("Snippet for {} retrieved successfully.".format(name))
-    return cursor.fetchall()[0][1]
+    return return_set
 
 
 def main():
@@ -86,6 +91,7 @@ def main():
     logging.debug("Constructing put subparser")
     put_parser = subparsers.add_parser("put", help="Store a snippet")
     put_parser.add_argument("database_name", help="Name of the database")
+    put_parser.add_argument("tablename", help="Name of database table")
     put_parser.add_argument("name", help="Name of the snippet")
     put_parser.add_argument("snippet", help="Snippet text")
     
