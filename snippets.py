@@ -1,8 +1,13 @@
 #!/usr/bin/python3
+
 import logging
 import argparse
+import psycopg2
 
-logging.basicConfig(filename="snippets.log", level=logging.DEBUG)
+logging.debug("Connecting to PostgreSQL")
+connection = psycopg2.connect(database="snippets")
+logging.debug("Database connection established.")
+
 
 def put(name, snippet):
     """
@@ -10,7 +15,12 @@ def put(name, snippet):
 
     Returns the name and snippet
     """
-    logging.error("FIXME: Unimplemented - put({!r}, {!r})".format(name, snippet))
+    logging.info("Storing snippet {!r}: {!r}".format(name, snippet))
+    cursor = connection.cursor()
+    command = "insert into snippets values (%s, %s)"
+    cursor.execute(command, (name, snippet))
+    connection.commit()
+    logging.debug("Snippet stored successfully.")
     return name, snippet
 
 def get(name):
@@ -20,8 +30,14 @@ def get(name):
 
     Returns the snippet.
     """
-    logging.error("FIXME: Unimplemented - get({!r})".format(name))
-    return ""
+    logging.info("Storing retrieving snippet {!r}: {!r}".format(name, snippet))
+    cursor = connection.cursor()
+    command = "select keyword, message from snippets where keyword = %s"
+    cursor.execute(command, (name,))
+    return_set = cursor.fetchone()[1]
+    logging.debug("Snippet stored successfully.")
+    return return_set
+
 
 def main():
     """"Main funcion"""
@@ -37,6 +53,14 @@ def main():
     put_parser.add_argument("snippet", help="Snippet text")
 
     arguments = parser.parse_args()
+    arguments = vars(arguments)
+    command = arguments.pop("command")
+
+    if command == "put":
+        name, snippet = put(**arguments)
+    elif command == "get":
+        snippet = get(**arguments)
+        print("Retrieved snippet: {!r}".format(snippet))
 
 if __name__ == "__main__":
     main()
