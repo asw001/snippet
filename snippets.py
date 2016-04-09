@@ -11,9 +11,9 @@ def initialize_db(database_name):
     logging.debug("Connecting to PostgreSQL")
     
     try:
-        connection = psycopg2.connect(database_name)
+        connection = psycopg2.connect(database=database_name)
     except psycopg2.OperationalError:
-        print("Could not connect to {} ...exiting",format(database_name))
+        print("Could not connect to {} ...exiting".format(database_name))
         logging.error("Could not connect to {} ...exiting".format(database_name))
         sys.exit()
     
@@ -75,6 +75,7 @@ def get(database_name, tablename, name):
 def main():
     """"Main funcion"""
     
+    logging.basicConfig(filename="snippets.log", level=logging.DEBUG)
     logging.info("Constructing Parser")
     parser = argparse.ArgumentParser(description="Store and retrieve snippets of text")
 
