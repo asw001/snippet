@@ -28,14 +28,22 @@ def put(database_name, tablename, name, snippet):
     Returns the name and snippet
     """
     connection = initialize_db(database_name)
+    
     logging.info("Storing snippet {!r}: {!r} in {!r} database, in table {!r}".format(name, snippet, database_name, tablename))
     cursor = connection.cursor()
     command = "insert into %s values (%s, %s)"
     
     try:
         cursor.execute(command, (AsIs(tablename), name, snippet))
-        cursor.close()
         connection.commit()
+        cursor.close()
+    except psycopg2.IntegrityError:
+        connection.rollback()
+        command = "update %s set message=%s where keyword=%s"
+        cursor.execute(command, (AsIs(tablename), snippet, name))
+        connection.commit()
+        cursor.close()
+        logging.info("Keyword is present, converted insert to update")
     except psycopg2.ProgrammingError:
         print("Error with SQL statement")
         logging.error("Error with SQL statement")
@@ -59,14 +67,16 @@ def get(database_name, tablename, name):
     command = "select keyword, message from %s where keyword = %s"
     
     try:
-        cursor.execute(command, (AsIs(tablename), name)) # needed to not interpolate the table name; quotes will cause the execution to fail
+        cursor.execute(command, (AsIs(tablename), name)) # AsIs needed to not interpolate the table name; quotes will cause the execution to fail
         try:
-            return_set = cursor.fetchall()[0][1]
+            return_set = cursor.fetchall()[0][1] # skipped the 'with' invocation because the cursor is closed before 'return_set' can be evaluated 
+            cursor.close()
+            connection.commit() # present in try and except block, would be more 'pretty' to do this once, but early return
         except IndexError:
             print("No record with keyword {}".format(name))
             logging.error("No record with keyword {}".format(name))
-            connection.rollback()
             cursor.close()
+            connection.rollback()
             return
     except psycopg2.ProgrammingError:
         print("Error with SQL statement")
