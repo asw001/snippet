@@ -87,6 +87,28 @@ def get(database_name, tablename, name):
     logging.debug("Snippet for {} retrieved successfully.".format(name))
     return return_set
 
+def catalog(database_name, tablename):
+    """Retrieve the keys from the database table without the name of the primary key"""
+    
+    logging.info("Retrieving keys from table: {!r} on database: {!r}".format(tablename, database_name))
+    connection = initialize_db(database_name)
+    cursor = connection.cursor()
+    command = "select * from %s"
+    
+    try:
+        cursor.execute(command, (AsIs(tablename), )) # AsIs needed to not interpolate the table name; quotes will cause the execution to fail
+        raw_return_set = cursor.fetchall()
+    except psycopg2.ProgrammingError:
+        print("Table doesn't exist: {}".format(tablename))
+        logging.error("No table with name: {} found".format(tablename))
+        cursor.close()
+        connection.rollback()
+        return
+    
+    return_set = dict((x, y) for x, y in raw_return_set)
+    logging.debug("Snippet for {} retrieved successfully.".format(tablename))
+    return " | ".join(return_set.keys())
+    
 
 def main():
     """"Main funcion"""
@@ -112,6 +134,12 @@ def main():
     get_parser.add_argument("tablename", help="Name of the database table")
     get_parser.add_argument("name", help="Name of the snippet")
     
+    #subparser for catalog command
+    logging.debug("Constructing catalog subparser")
+    get_parser = subparsers.add_parser("catalog", help="Retrives the keys for a particular table in a database")
+    get_parser.add_argument("database_name", help="Name of the database to be queried")
+    get_parser.add_argument("tablename", help="Name of database table")
+    
     arguments = parser.parse_args()
     arguments = vars(arguments)
     
@@ -122,6 +150,11 @@ def main():
     elif command == "get":
         snippet = get(**arguments)
         print("Retrieved snippet: {!r}".format(snippet))
-
+    elif command == "catalog":
+        primary_keys = catalog(**arguments)
+        print("Primary keys retrieved for database:")
+        print()
+        print(primary_keys)
+        
 if __name__ == "__main__":
     main()
